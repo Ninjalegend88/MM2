@@ -1,70 +1,42 @@
 --// MM2 Ultimate Suite | Credits: the invisible man
---// Key System & Anti-Cheat Bypass Included
+--// Key: Zkiller
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
---// Anti-Cheat Bypass Layer
-local OldNamecall
-local OldIndex
+--// Anti-Cheat Bypass
 local mt = getrawmetatable(game)
 setreadonly(mt, false)
 
-OldNamecall = hookfunction(mt.__namecall, newcclosure(function(self, ...)
+local OldNamecall = hookfunction(mt.__namecall, newcclosure(function(self, ...)
     local method = getnamecallmethod()
     if method == "Kick" or method == "kick" then
-        return warn("[AC Bypass] Kick intercepted and blocked.")
+        return warn("[AC] Kick blocked")
     end
     return OldNamecall(self, ...)
 end))
 
-OldIndex = hookfunction(mt.__index, newcclosure(function(self, key)
+local OldIndex = hookfunction(mt.__index, newcclosure(function(self, key)
     if self == LocalPlayer and key == "Kick" then
-        return function() warn("[AC Bypass] Kick function spoofed.") end
+        return function() end
     end
-    return OldIndex(self, key)
-end))
-
---// Spoof WalkSpeed/JumpPower checks
-local OldHumanoidIndex
-OldHumanoidIndex = hookfunction(mt.__index, newcclosure(function(self, key)
     if typeof(self) == "Instance" and self:IsA("Humanoid") then
         if key == "WalkSpeed" then return 16 end
         if key == "JumpPower" then return 50 end
     end
-    return OldHumanoidIndex(self, key)
+    return OldIndex(self, key)
 end))
 
---// Rayfield UI Loader
+--// Rayfield Loader
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
---// Key System Window
-local KeyWindow = Rayfield:CreateWindow({
-    Name = "MM2 Suite | Authentication",
-    LoadingTitle = "MM2 Ultimate",
-    LoadingSubtitle = "by the invisible man",
-    ConfigurationSaving = {
-        Enabled = false,
-    },
-    KeySystem = true,
-    KeySettings = {
-        Title = "Enter Access Key",
-        Subtitle = "Key Required",
-        Note = "Contact the invisible man for access",
-        FileName = "MM2Key",
-        SaveKey = false,
-        GrabKeyFromSite = false,
-        Key = {"Zkiller"}
-    }
-})
-
---// Main Window (loads after key)
+--// Single Window with Key System
 local Window = Rayfield:CreateWindow({
     Name = "MM2 Ultimate Suite",
     LoadingTitle = "MM2 Ultimate",
@@ -74,80 +46,94 @@ local Window = Rayfield:CreateWindow({
         FolderName = "MM2Suite",
         FileName = "MM2Config"
     },
-    Discord = {
-        Enabled = false,
-    },
-    KeySystem = false
+    KeySystem = true,
+    KeySettings = {
+        Title = "Authentication Required",
+        Subtitle = "Enter your access key",
+        Note = "Key: Zkiller",
+        FileName = "MM2Key",
+        SaveKey = false,
+        GrabKeyFromSite = false,
+        Key = {"Zkiller"}
+    }
 })
 
---// Player Info Header (Top Right Avatar + Username)
-local PlayerInfoSection = Window:CreateTab("Player Info", 4483345998)
-local PlayerInfoParagraph = PlayerInfoSection:CreateParagraph("Welcome", "Loading player data...")
+--// Player Info Overlay (Top Right Avatar + Username)
+local function CreatePlayerOverlay()
+    local existing = LocalPlayer.PlayerGui:FindFirstChild("MM2PlayerOverlay")
+    if existing then existing:Destroy() end
 
---// Avatar & Username Display
-local function UpdatePlayerHeader()
-    local userId = LocalPlayer.UserId
-    local username = LocalPlayer.Name
-    local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. userId .. "&width=420&height=420&format=png"
-
-    PlayerInfoParagraph:Set("Welcome, " .. username, "User ID: " .. userId)
-
-    --// Create ScreenGui for top-right avatar if not exists
-    local existingGui = LocalPlayer.PlayerGui:FindFirstChild("MM2AvatarDisplay")
-    if existingGui then existingGui:Destroy() end
-
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "MM2AvatarDisplay"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = LocalPlayer.PlayerGui
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "MM2PlayerOverlay"
+    gui.ResetOnSpawn = false
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.Parent = LocalPlayer.PlayerGui
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 140, 0, 60)
-    frame.Position = UDim2.new(1, -150, 0, 10)
-    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    frame.BackgroundTransparency = 0.3
+    frame.Size = UDim2.new(0, 160, 0, 65)
+    frame.Position = UDim2.new(1, -170, 0, 10)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    frame.BackgroundTransparency = 0.2
     frame.BorderSizePixel = 0
-    frame.Parent = screenGui
+    frame.Parent = gui
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
+    corner.CornerRadius = UDim.new(0, 10)
     corner.Parent = frame
 
-    local avatarImage = Instance.new("ImageLabel")
-    avatarImage.Size = UDim2.new(0, 50, 0, 50)
-    avatarImage.Position = UDim2.new(0, 5, 0, 5)
-    avatarImage.BackgroundTransparency = 1
-    avatarImage.Image = avatarUrl
-    avatarImage.Parent = frame
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(100, 100, 100)
+    stroke.Thickness = 1.5
+    stroke.Parent = frame
 
-    local avatarCorner = Instance.new("UICorner")
-    avatarCorner.CornerRadius = UDim.new(1, 0)
-    avatarCorner.Parent = avatarImage
+    local avatar = Instance.new("ImageLabel")
+    avatar.Name = "Avatar"
+    avatar.Size = UDim2.new(0, 50, 0, 50)
+    avatar.Position = UDim2.new(0, 8, 0, 7)
+    avatar.BackgroundTransparency = 1
+    avatar.Image = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
+    avatar.Parent = frame
+
+    local avCorner = Instance.new("UICorner")
+    avCorner.CornerRadius = UDim.new(1, 0)
+    avCorner.Parent = avatar
 
     local nameLabel = Instance.new("TextLabel")
-    nameLabel.Size = UDim2.new(0, 80, 0, 25)
-    nameLabel.Position = UDim2.new(0, 60, 0, 5)
+    nameLabel.Size = UDim2.new(0, 90, 0, 22)
+    nameLabel.Position = UDim2.new(0, 65, 0, 8)
     nameLabel.BackgroundTransparency = 1
-    nameLabel.Text = username
+    nameLabel.Text = LocalPlayer.Name
     nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    nameLabel.TextSize = 14
+    nameLabel.TextSize = 15
     nameLabel.Font = Enum.Font.GothamBold
     nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
     nameLabel.Parent = frame
 
     local statusLabel = Instance.new("TextLabel")
-    statusLabel.Size = UDim2.new(0, 80, 0, 20)
-    statusLabel.Position = UDim2.new(0, 60, 0, 30)
+    statusLabel.Size = UDim2.new(0, 90, 0, 18)
+    statusLabel.Position = UDim2.new(0, 65, 0, 32)
     statusLabel.BackgroundTransparency = 1
     statusLabel.Text = "✓ Authorized"
-    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 120)
     statusLabel.TextSize = 12
     statusLabel.Font = Enum.Font.Gotham
     statusLabel.TextXAlignment = Enum.TextXAlignment.Left
     statusLabel.Parent = frame
+
+    --// Fade in animation
+    frame.BackgroundTransparency = 1
+    avatar.ImageTransparency = 1
+    nameLabel.TextTransparency = 1
+    statusLabel.TextTransparency = 1
+
+    TweenService:Create(frame, TweenInfo.new(0.5), {BackgroundTransparency = 0.2}):Play()
+    TweenService:Create(avatar, TweenInfo.new(0.5), {ImageTransparency = 0}):Play()
+    TweenService:Create(nameLabel, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+    TweenService:Create(statusLabel, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
 end
 
-UpdatePlayerHeader()
+CreatePlayerOverlay()
 
 --// State Variables
 local ESP_Enabled = false
@@ -167,9 +153,7 @@ local JumpValue = 100
 local Aimbot_Enabled = false
 local Aimbot_BodyPart = "Head"
 local Aimbot_Smoothness = 0.15
-local KillAll_Enabled = false
 local RevealRoles_Enabled = false
-local GrabGun_Enabled = false
 
 local ESP_Objects = {}
 local Fly_Connection = nil
@@ -193,10 +177,6 @@ local function GetHead(character)
     return character and character:FindFirstChild("Head")
 end
 
-local function GetDistance(pos1, pos2)
-    return (pos1 - pos2).Magnitude
-end
-
 local function IsPlayerAlive(player)
     local char = GetCharacter(player)
     local hum = GetHumanoid(char)
@@ -206,6 +186,7 @@ end
 --// ESP System
 local function CreateESP(player)
     if player == LocalPlayer then return end
+    if ESP_Objects[player] then return end
 
     local char = GetCharacter(player)
     if not char then return end
@@ -263,31 +244,32 @@ local function UpdateESP()
         local head = GetHead(char)
 
         if not char or not hum or not head or hum.Health <= 0 then
-            objects.Billboard.Enabled = false
+            if objects.Billboard then objects.Billboard.Enabled = false end
         else
-            objects.Billboard.Enabled = true
-            objects.Billboard.Adornee = head
-            objects.HealthLabel.Text = "HP: " .. math.floor(hum.Health)
-            objects.NameLabel.TextColor3 = ESP_Color
+            if objects.Billboard then
+                objects.Billboard.Enabled = true
+                objects.Billboard.Adornee = head
+                objects.HealthLabel.Text = "HP: " .. math.floor(hum.Health)
 
-            --// MM2 Role Colors
-            if RevealRoles_Enabled then
-                local backpack = player:FindFirstChild("Backpack")
-                local hasKnife = backpack and (backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife"))
-                local hasGun = backpack and (backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun"))
+                if RevealRoles_Enabled then
+                    local backpack = player:FindFirstChild("Backpack")
+                    local hasKnife = backpack and (backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife"))
+                    local hasGun = backpack and (backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun"))
 
-                if hasKnife then
-                    objects.NameLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-                    objects.NameLabel.Text = player.Name .. " [KILLER]"
-                elseif hasGun then
-                    objects.NameLabel.TextColor3 = Color3.fromRGB(0, 100, 255)
-                    objects.NameLabel.Text = player.Name .. " [SHERIFF]"
+                    if hasKnife then
+                        objects.NameLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+                        objects.NameLabel.Text = player.Name .. " [KILLER]"
+                    elseif hasGun then
+                        objects.NameLabel.TextColor3 = Color3.fromRGB(0, 100, 255)
+                        objects.NameLabel.Text = player.Name .. " [SHERIFF]"
+                    else
+                        objects.NameLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+                        objects.NameLabel.Text = player.Name .. " [INNOCENT]"
+                    end
                 else
-                    objects.NameLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
-                    objects.NameLabel.Text = player.Name .. " [INNOCENT]"
+                    objects.NameLabel.TextColor3 = ESP_Color
+                    objects.NameLabel.Text = player.Name
                 end
-            else
-                objects.NameLabel.Text = player.Name
             end
         end
     end
@@ -329,7 +311,7 @@ local function ResetHitboxes()
     end
 end
 
---// Silent Aim System
+--// Silent Aim
 local function GetClosestPlayerToMouse()
     local closestPlayer = nil
     local shortestDistance = SilentAim_FOV
@@ -351,27 +333,7 @@ local function GetClosestPlayerToMouse()
             end
         end
     end
-
     return closestPlayer
-end
-
---// Hook Silent Aim into mouse
-local OldMouseHit
-local function SetupSilentAim()
-    local mouse = LocalPlayer:GetMouse()
-    OldMouseHit = hookfunction(getrawmetatable(mouse).__index, newcclosure(function(self, key)
-        if key == "Hit" and SilentAim_Enabled then
-            local target = GetClosestPlayerToMouse()
-            if target then
-                local char = GetCharacter(target)
-                local part = char and char:FindFirstChild(SilentAim_BodyPart)
-                if part then
-                    return CFrame.new(part.Position + (part.Velocity * 0.05))
-                end
-            end
-        end
-        return OldMouseHit(self, key)
-    end))
 end
 
 --// Fly System
@@ -381,53 +343,51 @@ local function ToggleFly()
         local root = GetRootPart(char)
         if not root then return end
 
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.Name = "MM2FlyVelocity"
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bodyVelocity.Parent = root
+        local bv = Instance.new("BodyVelocity")
+        bv.Name = "MM2FlyVel"
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        bv.Parent = root
 
-        local bodyGyro = Instance.new("BodyGyro")
-        bodyGyro.Name = "MM2FlyGyro"
-        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-        bodyGyro.P = 10000
-        bodyGyro.Parent = root
+        local bg = Instance.new("BodyGyro")
+        bg.Name = "MM2FlyGyro"
+        bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        bg.P = 10000
+        bg.Parent = root
 
         Fly_Connection = RunService.RenderStepped:Connect(function()
             if not Fly_Enabled then return end
             local char = GetCharacter(LocalPlayer)
             local root = GetRootPart(char)
-            local bv = root and root:FindFirstChild("MM2FlyVelocity")
-            local bg = root and root:FindFirstChild("MM2FlyGyro")
+            if not root then return end
 
-            if bv and bg then
-                local camCF = Camera.CFrame
-                local moveDir = Vector3.new(0, 0, 0)
+            local bv2 = root:FindFirstChild("MM2FlyVel")
+            local bg2 = root:FindFirstChild("MM2FlyGyro")
+            if not bv2 or not bg2 then return end
 
-                if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camCF.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camCF.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camCF.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camCF.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
-                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+            local camCF = Camera.CFrame
+            local moveDir = Vector3.new(0, 0, 0)
 
-                if moveDir.Magnitude > 0 then
-                    moveDir = moveDir.Unit * Fly_Speed
-                end
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir += camCF.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir -= camCF.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir -= camCF.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir += camCF.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir += Vector3.new(0, 1, 0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir -= Vector3.new(0, 1, 0) end
 
-                bv.Velocity = moveDir
-                bg.CFrame = camCF
+            if moveDir.Magnitude > 0 then
+                moveDir = moveDir.Unit * Fly_Speed
             end
+
+            bv2.Velocity = moveDir
+            bg2.CFrame = camCF
         end)
     else
-        if Fly_Connection then
-            Fly_Connection:Disconnect()
-            Fly_Connection = nil
-        end
+        if Fly_Connection then Fly_Connection:Disconnect() Fly_Connection = nil end
         local char = GetCharacter(LocalPlayer)
         local root = GetRootPart(char)
         if root then
-            local bv = root:FindFirstChild("MM2FlyVelocity")
+            local bv = root:FindFirstChild("MM2FlyVel")
             local bg = root:FindFirstChild("MM2FlyGyro")
             if bv then bv:Destroy() end
             if bg then bg:Destroy() end
@@ -435,7 +395,7 @@ local function ToggleFly()
     end
 end
 
---// Noclip System
+--// Noclip
 local function ToggleNoclip()
     if Noclip_Enabled then
         Noclip_Connection = RunService.Stepped:Connect(function()
@@ -450,10 +410,7 @@ local function ToggleNoclip()
             end
         end)
     else
-        if Noclip_Connection then
-            Noclip_Connection:Disconnect()
-            Noclip_Connection = nil
-        end
+        if Noclip_Connection then Noclip_Connection:Disconnect() Noclip_Connection = nil end
         local char = GetCharacter(LocalPlayer)
         if char then
             for _, part in ipairs(char:GetDescendants()) do
@@ -465,7 +422,7 @@ local function ToggleNoclip()
     end
 end
 
---// Speed & Jump Changer
+--// Speed & Jump
 local function UpdateSpeedAndJump()
     local char = GetCharacter(LocalPlayer)
     local hum = GetHumanoid(char)
@@ -483,7 +440,7 @@ local function UpdateSpeedAndJump()
     end
 end
 
---// Aimbot System
+--// Aimbot
 local function GetClosestPlayerToCenter()
     local closestPlayer = nil
     local shortestDistance = math.huge
@@ -505,7 +462,6 @@ local function GetClosestPlayerToCenter()
             end
         end
     end
-
     return closestPlayer
 end
 
@@ -526,14 +482,11 @@ local function ToggleAimbot()
             end
         end)
     else
-        if Aimbot_Connection then
-            Aimbot_Connection:Disconnect()
-            Aimbot_Connection = nil
-        end
+        if Aimbot_Connection then Aimbot_Connection:Disconnect() Aimbot_Connection = nil end
     end
 end
 
---// Kill All System
+--// Kill All
 local function KillAll()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
@@ -546,7 +499,7 @@ local function KillAll()
     end
 end
 
---// MM2 Grab Gun System
+--// Grab Gun
 local function GrabGun()
     local gunDrop = Workspace:FindFirstChild("GunDrop")
     if gunDrop and gunDrop:IsA("BasePart") then
@@ -555,7 +508,6 @@ local function GrabGun()
         if root then
             root.CFrame = gunDrop.CFrame + Vector3.new(0, 3, 0)
             wait(0.5)
-            --// Simulate pickup
             local touchInterest = gunDrop:FindFirstChild("TouchInterest")
             if touchInterest then
                 firetouchinterest(root, gunDrop, 0)
@@ -565,22 +517,18 @@ local function GrabGun()
     end
 end
 
---// UI Tabs
-local CombatTab = Window:CreateTab("Combat", 4483345998)
-local MovementTab = Window:CreateTab("Movement", 4483345998)
-local VisualsTab = Window:CreateTab("Visuals", 4483345998)
-local MM2Tab = Window:CreateTab("MM2 Specific", 4483345998)
-local SettingsTab = Window:CreateTab("Settings", 4483345998)
+--// ======================== TABS ========================
 
 --// Combat Tab
+local CombatTab = Window:CreateTab("Combat", 4483345998)
+
 CombatTab:CreateToggle({
     Name = "Silent Aim",
     CurrentValue = false,
-    Flag = "SilentAimToggle",
+    Flag = "SilentAim",
     Callback = function(Value)
         SilentAim_Enabled = Value
-        if Value then SetupSilentAim() end
-    end,
+    end
 })
 
 CombatTab:CreateSlider({
@@ -592,37 +540,37 @@ CombatTab:CreateSlider({
     Flag = "SilentAimFOV",
     Callback = function(Value)
         SilentAim_FOV = Value
-    end,
+    end
 })
 
 CombatTab:CreateDropdown({
     Name = "Silent Aim Target",
-    Options = {"Head", "Torso", "HumanoidRootPart", "LeftArm", "RightArm", "LeftLeg", "RightLeg"},
+    Options = {"Head", "Torso", "HumanoidRootPart", "Left Arm", "Right Arm", "Left Leg", "Right Leg"},
     CurrentOption = "Head",
     Flag = "SilentAimPart",
     Callback = function(Option)
         SilentAim_BodyPart = Option
-    end,
+    end
 })
 
 CombatTab:CreateToggle({
     Name = "Aimbot",
     CurrentValue = false,
-    Flag = "AimbotToggle",
+    Flag = "Aimbot",
     Callback = function(Value)
         Aimbot_Enabled = Value
         ToggleAimbot()
-    end,
+    end
 })
 
 CombatTab:CreateDropdown({
     Name = "Aimbot Target",
-    Options = {"Head", "Torso", "HumanoidRootPart", "LeftArm", "RightArm", "LeftLeg", "RightLeg"},
+    Options = {"Head", "Torso", "HumanoidRootPart", "Left Arm", "Right Arm", "Left Leg", "Right Leg"},
     CurrentOption = "Head",
     Flag = "AimbotPart",
     Callback = function(Option)
         Aimbot_BodyPart = Option
-    end,
+    end
 })
 
 CombatTab:CreateSlider({
@@ -634,21 +582,17 @@ CombatTab:CreateSlider({
     Flag = "AimbotSmooth",
     Callback = function(Value)
         Aimbot_Smoothness = Value
-    end,
+    end
 })
 
 CombatTab:CreateToggle({
     Name = "Hitbox Expander",
     CurrentValue = false,
-    Flag = "HitboxToggle",
+    Flag = "Hitbox",
     Callback = function(Value)
         Hitbox_Enabled = Value
-        if Value then
-            ExpandHitboxes()
-        else
-            ResetHitboxes()
-        end
-    end,
+        if Value then ExpandHitboxes() else ResetHitboxes() end
+    end
 })
 
 CombatTab:CreateSlider({
@@ -661,107 +605,107 @@ CombatTab:CreateSlider({
     Callback = function(Value)
         Hitbox_Size = Value
         if Hitbox_Enabled then ExpandHitboxes() end
-    end,
+    end
 })
 
 --// Movement Tab
+local MovementTab = Window:CreateTab("Movement", 4483345998)
+
 MovementTab:CreateToggle({
     Name = "Fly",
     CurrentValue = false,
-    Flag = "FlyToggle",
+    Flag = "Fly",
     Callback = function(Value)
         Fly_Enabled = Value
         ToggleFly()
-    end,
+    end
 })
 
 MovementTab:CreateSlider({
     Name = "Fly Speed",
     Range = {10, 500},
     Increment = 5,
-    Suffix = " speed",
+    Suffix = "",
     CurrentValue = 50,
     Flag = "FlySpeed",
     Callback = function(Value)
         Fly_Speed = Value
-    end,
+    end
 })
 
 MovementTab:CreateToggle({
     Name = "Noclip",
     CurrentValue = false,
-    Flag = "NoclipToggle",
+    Flag = "Noclip",
     Callback = function(Value)
         Noclip_Enabled = Value
         ToggleNoclip()
-    end,
+    end
 })
 
 MovementTab:CreateToggle({
     Name = "Speed Changer",
     CurrentValue = false,
-    Flag = "SpeedToggle",
+    Flag = "Speed",
     Callback = function(Value)
         SpeedChanger_Enabled = Value
         UpdateSpeedAndJump()
-    end,
+    end
 })
 
 MovementTab:CreateSlider({
     Name = "Speed Value",
     Range = {16, 300},
     Increment = 5,
-    Suffix = " walkspeed",
+    Suffix = "",
     CurrentValue = 100,
     Flag = "SpeedValue",
     Callback = function(Value)
         SpeedValue = Value
         if SpeedChanger_Enabled then UpdateSpeedAndJump() end
-    end,
+    end
 })
 
 MovementTab:CreateToggle({
     Name = "Jump Power Changer",
     CurrentValue = false,
-    Flag = "JumpToggle",
+    Flag = "Jump",
     Callback = function(Value)
         JumpChanger_Enabled = Value
         UpdateSpeedAndJump()
-    end,
+    end
 })
 
 MovementTab:CreateSlider({
     Name = "Jump Power Value",
     Range = {50, 300},
     Increment = 5,
-    Suffix = " jumppower",
+    Suffix = "",
     CurrentValue = 100,
     Flag = "JumpValue",
     Callback = function(Value)
         JumpValue = Value
         if JumpChanger_Enabled then UpdateSpeedAndJump() end
-    end,
+    end
 })
 
 --// Visuals Tab
+local VisualsTab = Window:CreateTab("Visuals", 4483345998)
+
 VisualsTab:CreateToggle({
     Name = "ESP",
     CurrentValue = false,
-    Flag = "ESPToggle",
+    Flag = "ESP",
     Callback = function(Value)
         ESP_Enabled = Value
         if Value then
             for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer then
-                    CreateESP(player)
-                end
+                if player ~= LocalPlayer then CreateESP(player) end
             end
         else
-            for player, _ in pairs(ESP_Objects) do
-                RemoveESP(player)
-            end
+            for player, _ in pairs(ESP_Objects) do RemoveESP(player) end
         end
-    end,
+    end
 })
 
 VisualsTab:CreateColorPicker({
@@ -770,41 +714,46 @@ VisualsTab:CreateColorPicker({
     Flag = "ESPColor",
     Callback = function(Value)
         ESP_Color = Value
-    end,
+    end
 })
 
 --// MM2 Specific Tab
+local MM2Tab = Window:CreateTab("MM2 Specific", 4483345998)
+
 MM2Tab:CreateToggle({
     Name = "Reveal Roles (Killer/Sheriff/Innocent)",
     CurrentValue = false,
-    Flag = "RevealRolesToggle",
+    Flag = "RevealRoles",
     Callback = function(Value)
         RevealRoles_Enabled = Value
-    end,
+    end
 })
 
 MM2Tab:CreateButton({
     Name = "Grab Gun",
     Callback = function()
         GrabGun()
-    end,
+    end
 })
 
 MM2Tab:CreateButton({
     Name = "Kill All",
     Callback = function()
         KillAll()
-    end,
+    end
 })
 
 --// Settings Tab
-SettingsTab:CreateParagraph("Credits", "Made by the invisible man\nMM2 Ultimate Suite v1.0")
+local SettingsTab = Window:CreateTab("Settings", 4483345998)
 
---// Player Added/Removing
+SettingsTab:CreateParagraph({
+    Title = "Credits",
+    Content = "MM2 Ultimate Suite v1.0\nMade by the invisible man"
+})
+
+--// Player Events
 Players.PlayerAdded:Connect(function(player)
-    if ESP_Enabled then
-        CreateESP(player)
-    end
+    if ESP_Enabled then CreateESP(player) end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
@@ -813,32 +762,37 @@ end)
 
 --// Main Loop
 RunService.RenderStepped:Connect(function()
-    if ESP_Enabled then
-        UpdateESP()
-    end
-
-    if Hitbox_Enabled then
-        ExpandHitboxes()
-    end
-
-    if SpeedChanger_Enabled or JumpChanger_Enabled then
-        UpdateSpeedAndJump()
-    end
+    if ESP_Enabled then UpdateESP() end
+    if Hitbox_Enabled then ExpandHitboxes() end
+    if SpeedChanger_Enabled or JumpChanger_Enabled then UpdateSpeedAndJump() end
 end)
 
---// Character Respawn Handler
+--// Respawn Handler
 LocalPlayer.CharacterAdded:Connect(function()
     wait(1)
-    if Fly_Enabled then
-        ToggleFly()
-        ToggleFly()
-    end
-    if Noclip_Enabled then
-        ToggleNoclip()
-        ToggleNoclip()
-    end
+    if Fly_Enabled then ToggleFly() ToggleFly() end
+    if Noclip_Enabled then ToggleNoclip() ToggleNoclip() end
     UpdateSpeedAndJump()
 end)
 
+--// Silent Aim Hook (delayed to avoid conflicts)
+local mouse = LocalPlayer:GetMouse()
+local mt2 = getrawmetatable(mouse)
+setreadonly(mt2, false)
+local oldMouseIndex = mt2.__index
+mt2.__index = newcclosure(function(self, key)
+    if key == "Hit" and SilentAim_Enabled then
+        local target = GetClosestPlayerToMouse()
+        if target then
+            local char = GetCharacter(target)
+            local part = char and char:FindFirstChild(SilentAim_BodyPart)
+            if part then
+                return CFrame.new(part.Position + (part.Velocity * 0.05))
+            end
+        end
+    end
+    return oldMouseIndex(self, key)
+end)
+
 Rayfield:LoadConfiguration()
-print("[MM2 Suite] Loaded successfully | by the invisible man")
+print("[MM2 Suite] Loaded | by the invisible man")
