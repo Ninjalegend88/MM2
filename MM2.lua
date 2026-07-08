@@ -1,64 +1,535 @@
 --// MM2 Ultimate Suite | Credits: the invisible man
 --// Key: Zkiller
+--// Bulletproof Version - Compatible with all executors
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
---// Anti-Cheat Bypass
-local mt = getrawmetatable(game)
-setreadonly(mt, false)
-
-local OldNamecall = hookfunction(mt.__namecall, newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    if method == "Kick" or method == "kick" then
-        return warn("[AC] Kick blocked")
+--// Safe function wrapper
+local function SafeCall(func, ...)
+    local success, result = pcall(func, ...)
+    if not success then
+        warn("[MM2 Suite] SafeCall error: " .. tostring(result))
     end
-    return OldNamecall(self, ...)
-end))
+    return success, result
+end
 
-local OldIndex = hookfunction(mt.__index, newcclosure(function(self, key)
-    if self == LocalPlayer and key == "Kick" then
-        return function() end
+--// Anti-Cheat Bypass (Optional - won't crash if unsupported)
+SafeCall(function()
+    local mt = getrawmetatable and getrawmetatable(game)
+    if not mt then return end
+    if setreadonly then setreadonly(mt, false) end
+
+    local oldNamecall = mt.__namecall
+    mt.__namecall = function(self, ...)
+        local method = getnamecallmethod and getnamecallmethod() or ""
+        if method == "Kick" or method == "kick" then
+            return warn("[AC] Kick blocked")
+        end
+        return oldNamecall(self, ...)
     end
-    if typeof(self) == "Instance" and self:IsA("Humanoid") then
-        if key == "WalkSpeed" then return 16 end
-        if key == "JumpPower" then return 50 end
+
+    local oldIndex = mt.__index
+    mt.__index = function(self, key)
+        if self == LocalPlayer and key == "Kick" then
+            return function() end
+        end
+        if typeof(self) == "Instance" and self:IsA("Humanoid") then
+            if key == "WalkSpeed" then return 16 end
+            if key == "JumpPower" then return 50 end
+        end
+        return oldIndex(self, key)
     end
-    return OldIndex(self, key)
-end))
+end)
 
---// Rayfield Loader
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+--// ===================== UI SYSTEM =====================
+--// Try Rayfield first, fall back to custom UI if it fails
+local Rayfield = nil
+local UseCustomUI = false
 
---// Single Window with Key System
-local Window = Rayfield:CreateWindow({
-    Name = "MM2 Ultimate Suite",
-    LoadingTitle = "MM2 Ultimate",
-    LoadingSubtitle = "by the invisible man",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "MM2Suite",
-        FileName = "MM2Config"
-    },
-    KeySystem = true,
-    KeySettings = {
-        Title = "Authentication Required",
-        Subtitle = "Enter your access key",
-        Note = "Key: Zkiller",
-        FileName = "MM2Key",
-        SaveKey = false,
-        GrabKeyFromSite = false,
-        Key = {"Zkiller"}
+SafeCall(function()
+    Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+end)
+
+if not Rayfield then
+    warn("[MM2 Suite] Rayfield failed to load, using custom UI fallback")
+    UseCustomUI = true
+end
+
+--// Custom UI Fallback (always works, no external dependencies)
+local CustomUI = {}
+local CustomElements = {}
+
+function CustomUI:CreateWindow(config)
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "MM2CustomUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Parent = LocalPlayer.PlayerGui
+
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0, 500, 0, 400)
+    mainFrame.Position = UDim2.new(0.5, -250, 0.5, -200)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ClipsDescendants = true
+    mainFrame.Parent = screenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = mainFrame
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(60, 60, 60)
+    stroke.Thickness = 2
+    stroke.Parent = mainFrame
+
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 40)
+    titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = mainFrame
+
+    local titleText = Instance.new("TextLabel")
+    titleText.Size = UDim2.new(1, -50, 1, 0)
+    titleText.Position = UDim2.new(0, 15, 0, 0)
+    titleText.BackgroundTransparency = 1
+    titleText.Text = config.Name or "MM2 Ultimate Suite"
+    titleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleText.TextSize = 16
+    titleText.Font = Enum.Font.GothamBold
+    titleText.TextXAlignment = Enum.TextXAlignment.Left
+    titleText.Parent = titleBar
+
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 30, 0, 30)
+    closeBtn.Position = UDim2.new(1, -35, 0, 5)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+    closeBtn.Text = "X"
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.TextSize = 14
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.Parent = titleBar
+
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.Parent = closeBtn
+
+    closeBtn.MouseButton1Click:Connect(function()
+        screenGui.Enabled = not screenGui.Enabled
+    end)
+
+    local tabContainer = Instance.new("Frame")
+    tabContainer.Name = "TabContainer"
+    tabContainer.Size = UDim2.new(0, 120, 1, -40)
+    tabContainer.Position = UDim2.new(0, 0, 0, 40)
+    tabContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    tabContainer.BorderSizePixel = 0
+    tabContainer.Parent = mainFrame
+
+    local contentContainer = Instance.new("Frame")
+    contentContainer.Name = "ContentContainer"
+    contentContainer.Size = UDim2.new(1, -120, 1, -40)
+    contentContainer.Position = UDim2.new(0, 120, 0, 40)
+    contentContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    contentContainer.BorderSizePixel = 0
+    contentContainer.Parent = mainFrame
+
+    local tabList = Instance.new("UIListLayout")
+    tabList.Padding = UDim.new(0, 5)
+    tabList.Parent = tabContainer
+
+    local tabs = {}
+    local activeTab = nil
+
+    local windowObj = {
+        MainFrame = mainFrame,
+        TabContainer = tabContainer,
+        ContentContainer = contentContainer,
+        Tabs = tabs
     }
-})
 
---// Player Info Overlay (Top Right Avatar + Username)
+    function windowObj:CreateTab(name, icon)
+        local tabBtn = Instance.new("TextButton")
+        tabBtn.Size = UDim2.new(1, -10, 0, 35)
+        tabBtn.Position = UDim2.new(0, 5, 0, 0)
+        tabBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        tabBtn.Text = name
+        tabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+        tabBtn.TextSize = 13
+        tabBtn.Font = Enum.Font.Gotham
+        tabBtn.Parent = tabContainer
+
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 8)
+        btnCorner.Parent = tabBtn
+
+        local tabContent = Instance.new("ScrollingFrame")
+        tabContent.Size = UDim2.new(1, 0, 1, 0)
+        tabContent.BackgroundTransparency = 1
+        tabContent.BorderSizePixel = 0
+        tabContent.ScrollBarThickness = 4
+        tabContent.Visible = false
+        tabContent.Parent = contentContainer
+
+        local contentList = Instance.new("UIListLayout")
+        contentList.Padding = UDim.new(0, 8)
+        contentList.Parent = tabContent
+
+        local contentPadding = Instance.new("UIPadding")
+        contentPadding.PaddingLeft = UDim.new(0, 10)
+        contentPadding.PaddingRight = UDim.new(0, 10)
+        contentPadding.PaddingTop = UDim.new(0, 10)
+        contentPadding.PaddingBottom = UDim.new(0, 10)
+        contentPadding.Parent = tabContent
+
+        local tabObj = {
+            Button = tabBtn,
+            Content = tabContent,
+            Elements = {}
+        }
+
+        tabBtn.MouseButton1Click:Connect(function()
+            if activeTab then
+                activeTab.Content.Visible = false
+                activeTab.Button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                activeTab.Button.TextColor3 = Color3.fromRGB(200, 200, 200)
+            end
+            activeTab = tabObj
+            tabContent.Visible = true
+            tabBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+            tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end)
+
+        if not activeTab then
+            tabBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+            tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            tabContent.Visible = true
+            activeTab = tabObj
+        end
+
+        table.insert(tabs, tabObj)
+        return tabObj
+    end
+
+    return windowObj
+end
+
+function CustomUI:CreateToggle(tab, config)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 40)
+    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    frame.BorderSizePixel = 0
+    frame.Parent = tab.Content
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, -40, 1, 0)
+    label.Position = UDim2.new(0, 12, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = config.Name
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 14
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(0, 50, 0, 24)
+    toggleBtn.Position = UDim2.new(1, -60, 0.5, -12)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    toggleBtn.Text = "OFF"
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.TextSize = 12
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.Parent = frame
+
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 12)
+    toggleCorner.Parent = toggleBtn
+
+    local enabled = config.CurrentValue or false
+
+    local function updateToggle()
+        if enabled then
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+            toggleBtn.Text = "ON"
+        else
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            toggleBtn.Text = "OFF"
+        end
+        if config.Callback then
+            config.Callback(enabled)
+        end
+    end
+
+    toggleBtn.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        updateToggle()
+    end)
+
+    table.insert(tab.Elements, {Type = "Toggle", Value = function() return enabled end, Set = function(v) enabled = v updateToggle() end})
+    return tab.Elements[#tab.Elements]
+end
+
+function CustomUI:CreateSlider(tab, config)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 60)
+    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    frame.BorderSizePixel = 0
+    frame.Parent = tab.Content
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -20, 0, 20)
+    label.Position = UDim2.new(0, 10, 0, 5)
+    label.BackgroundTransparency = 1
+    label.Text = config.Name .. ": " .. config.CurrentValue
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 13
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+
+    local sliderBar = Instance.new("Frame")
+    sliderBar.Size = UDim2.new(1, -20, 0, 8)
+    sliderBar.Position = UDim2.new(0, 10, 0, 35)
+    sliderBar.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    sliderBar.BorderSizePixel = 0
+    sliderBar.Parent = frame
+
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(0, 4)
+    sliderCorner.Parent = sliderBar
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(0, 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+    fill.BorderSizePixel = 0
+    fill.Parent = sliderBar
+
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(0, 4)
+    fillCorner.Parent = fill
+
+    local value = config.CurrentValue or config.Range[1]
+    local min, max = config.Range[1], config.Range[2]
+    local increment = config.Increment or 1
+
+    local function updateSlider(inputX)
+        local relativeX = math.clamp((inputX - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1)
+        local rawValue = min + (relativeX * (max - min))
+        value = math.floor((rawValue / increment) + 0.5) * increment
+        value = math.clamp(value, min, max)
+        fill.Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
+        label.Text = config.Name .. ": " .. value
+        if config.Callback then config.Callback(value) end
+    end
+
+    local dragging = false
+    sliderBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            updateSlider(input.Position.X)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateSlider(input.Position.X)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    fill.Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
+
+    table.insert(tab.Elements, {Type = "Slider", Value = function() return value end})
+    return tab.Elements[#tab.Elements]
+end
+
+function CustomUI:CreateButton(tab, config)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 40)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    btn.Text = config.Name
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 14
+    btn.Font = Enum.Font.GothamBold
+    btn.Parent = tab.Content
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = btn
+
+    btn.MouseButton1Click:Connect(function()
+        if config.Callback then config.Callback() end
+    end)
+
+    btn.MouseEnter:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end)
+    btn.MouseLeave:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    end)
+
+    table.insert(tab.Elements, {Type = "Button"})
+    return tab.Elements[#tab.Elements]
+end
+
+function CustomUI:CreateDropdown(tab, config)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 40)
+    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    frame.BorderSizePixel = 0
+    frame.Parent = tab.Content
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, -40, 1, 0)
+    label.Position = UDim2.new(0, 12, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = config.Name
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 14
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+
+    local dropBtn = Instance.new("TextButton")
+    dropBtn.Size = UDim2.new(0, 120, 0, 28)
+    dropBtn.Position = UDim2.new(1, -130, 0.5, -14)
+    dropBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    dropBtn.Text = config.CurrentOption or config.Options[1]
+    dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    dropBtn.TextSize = 12
+    dropBtn.Font = Enum.Font.Gotham
+    dropBtn.Parent = frame
+
+    local dropCorner = Instance.new("UICorner")
+    dropCorner.CornerRadius = UDim.new(0, 6)
+    dropCorner.Parent = dropBtn
+
+    local selected = config.CurrentOption or config.Options[1]
+
+    dropBtn.MouseButton1Click:Connect(function()
+        local currentIdx = table.find(config.Options, selected) or 1
+        local nextIdx = currentIdx % #config.Options + 1
+        selected = config.Options[nextIdx]
+        dropBtn.Text = selected
+        if config.Callback then config.Callback(selected) end
+    end)
+
+    table.insert(tab.Elements, {Type = "Dropdown", Value = function() return selected end})
+    return tab.Elements[#tab.Elements]
+end
+
+function CustomUI:CreateParagraph(tab, config)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 50)
+    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    frame.BorderSizePixel = 0
+    frame.Parent = tab.Content
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -20, 0, 20)
+    title.Position = UDim2.new(0, 10, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Text = config.Title or ""
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextSize = 14
+    title.Font = Enum.Font.GothamBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = frame
+
+    local content = Instance.new("TextLabel")
+    content.Size = UDim2.new(1, -20, 0, 20)
+    content.Position = UDim2.new(0, 10, 0, 25)
+    content.BackgroundTransparency = 1
+    content.Text = config.Content or ""
+    content.TextColor3 = Color3.fromRGB(200, 200, 200)
+    content.TextSize = 12
+    content.Font = Enum.Font.Gotham
+    content.TextXAlignment = Enum.TextXAlignment.Left
+    content.TextWrapped = true
+    content.Parent = frame
+
+    table.insert(tab.Elements, {Type = "Paragraph"})
+    return tab.Elements[#tab.Elements]
+end
+
+--// ===================== STATE VARIABLES =====================
+local ESP_Enabled = false
+local ESP_Color = Color3.fromRGB(255, 255, 255)
+local Hitbox_Enabled = false
+local Hitbox_Size = 5
+local SilentAim_Enabled = false
+local SilentAim_FOV = 150
+local SilentAim_BodyPart = "Head"
+local Fly_Enabled = false
+local Fly_Speed = 50
+local Noclip_Enabled = false
+local SpeedChanger_Enabled = false
+local SpeedValue = 100
+local JumpChanger_Enabled = false
+local JumpValue = 100
+local Aimbot_Enabled = false
+local Aimbot_BodyPart = "Head"
+local Aimbot_Smoothness = 0.15
+local RevealRoles_Enabled = false
+
+local ESP_Objects = {}
+local Fly_Connection = nil
+local Noclip_Connection = nil
+local Aimbot_Connection = nil
+
+--// ===================== UTILITY =====================
+local function GetCharacter(player)
+    return player and player.Character
+end
+
+local function GetHumanoid(character)
+    return character and character:FindFirstChildOfClass("Humanoid")
+end
+
+local function GetRootPart(character)
+    return character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso"))
+end
+
+local function GetHead(character)
+    return character and character:FindFirstChild("Head")
+end
+
+local function IsPlayerAlive(player)
+    local char = GetCharacter(player)
+    local hum = GetHumanoid(char)
+    return hum and hum.Health > 0
+end
+
+--// ===================== PLAYER OVERLAY =====================
 local function CreatePlayerOverlay()
     local existing = LocalPlayer.PlayerGui:FindFirstChild("MM2PlayerOverlay")
     if existing then existing:Destroy() end
@@ -87,7 +558,6 @@ local function CreatePlayerOverlay()
     stroke.Parent = frame
 
     local avatar = Instance.new("ImageLabel")
-    avatar.Name = "Avatar"
     avatar.Size = UDim2.new(0, 50, 0, 50)
     avatar.Position = UDim2.new(0, 8, 0, 7)
     avatar.BackgroundTransparency = 1
@@ -120,70 +590,11 @@ local function CreatePlayerOverlay()
     statusLabel.Font = Enum.Font.Gotham
     statusLabel.TextXAlignment = Enum.TextXAlignment.Left
     statusLabel.Parent = frame
-
-    --// Fade in animation
-    frame.BackgroundTransparency = 1
-    avatar.ImageTransparency = 1
-    nameLabel.TextTransparency = 1
-    statusLabel.TextTransparency = 1
-
-    TweenService:Create(frame, TweenInfo.new(0.5), {BackgroundTransparency = 0.2}):Play()
-    TweenService:Create(avatar, TweenInfo.new(0.5), {ImageTransparency = 0}):Play()
-    TweenService:Create(nameLabel, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
-    TweenService:Create(statusLabel, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
 end
 
 CreatePlayerOverlay()
 
---// State Variables
-local ESP_Enabled = false
-local ESP_Color = Color3.fromRGB(255, 255, 255)
-local Hitbox_Enabled = false
-local Hitbox_Size = 5
-local SilentAim_Enabled = false
-local SilentAim_FOV = 150
-local SilentAim_BodyPart = "Head"
-local Fly_Enabled = false
-local Fly_Speed = 50
-local Noclip_Enabled = false
-local SpeedChanger_Enabled = false
-local SpeedValue = 100
-local JumpChanger_Enabled = false
-local JumpValue = 100
-local Aimbot_Enabled = false
-local Aimbot_BodyPart = "Head"
-local Aimbot_Smoothness = 0.15
-local RevealRoles_Enabled = false
-
-local ESP_Objects = {}
-local Fly_Connection = nil
-local Noclip_Connection = nil
-local Aimbot_Connection = nil
-
---// Utility Functions
-local function GetCharacter(player)
-    return player and player.Character
-end
-
-local function GetHumanoid(character)
-    return character and character:FindFirstChildOfClass("Humanoid")
-end
-
-local function GetRootPart(character)
-    return character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso"))
-end
-
-local function GetHead(character)
-    return character and character:FindFirstChild("Head")
-end
-
-local function IsPlayerAlive(player)
-    local char = GetCharacter(player)
-    local hum = GetHumanoid(char)
-    return hum and hum.Health > 0
-end
-
---// ESP System
+--// ===================== ESP SYSTEM =====================
 local function CreateESP(player)
     if player == LocalPlayer then return end
     if ESP_Objects[player] then return end
@@ -275,7 +686,7 @@ local function UpdateESP()
     end
 end
 
---// Hitbox Expander
+--// ===================== HITBOX EXPANDER =====================
 local function ExpandHitboxes()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
@@ -311,7 +722,7 @@ local function ResetHitboxes()
     end
 end
 
---// Silent Aim
+--// ===================== SILENT AIM =====================
 local function GetClosestPlayerToMouse()
     local closestPlayer = nil
     local shortestDistance = SilentAim_FOV
@@ -336,7 +747,7 @@ local function GetClosestPlayerToMouse()
     return closestPlayer
 end
 
---// Fly System
+--// ===================== FLY SYSTEM =====================
 local function ToggleFly()
     if Fly_Enabled then
         local char = GetCharacter(LocalPlayer)
@@ -357,23 +768,23 @@ local function ToggleFly()
 
         Fly_Connection = RunService.RenderStepped:Connect(function()
             if not Fly_Enabled then return end
-            local char = GetCharacter(LocalPlayer)
-            local root = GetRootPart(char)
-            if not root then return end
+            local char2 = GetCharacter(LocalPlayer)
+            local root2 = GetRootPart(char2)
+            if not root2 then return end
 
-            local bv2 = root:FindFirstChild("MM2FlyVel")
-            local bg2 = root:FindFirstChild("MM2FlyGyro")
+            local bv2 = root2:FindFirstChild("MM2FlyVel")
+            local bg2 = root2:FindFirstChild("MM2FlyGyro")
             if not bv2 or not bg2 then return end
 
             local camCF = Camera.CFrame
             local moveDir = Vector3.new(0, 0, 0)
 
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir += camCF.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir -= camCF.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir -= camCF.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir += camCF.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir += Vector3.new(0, 1, 0) end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir -= Vector3.new(0, 1, 0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camCF.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camCF.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camCF.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camCF.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
 
             if moveDir.Magnitude > 0 then
                 moveDir = moveDir.Unit * Fly_Speed
@@ -395,7 +806,7 @@ local function ToggleFly()
     end
 end
 
---// Noclip
+--// ===================== NOCLIP =====================
 local function ToggleNoclip()
     if Noclip_Enabled then
         Noclip_Connection = RunService.Stepped:Connect(function()
@@ -422,7 +833,7 @@ local function ToggleNoclip()
     end
 end
 
---// Speed & Jump
+--// ===================== SPEED & JUMP =====================
 local function UpdateSpeedAndJump()
     local char = GetCharacter(LocalPlayer)
     local hum = GetHumanoid(char)
@@ -440,7 +851,7 @@ local function UpdateSpeedAndJump()
     end
 end
 
---// Aimbot
+--// ===================== AIMBOT =====================
 local function GetClosestPlayerToCenter()
     local closestPlayer = nil
     local shortestDistance = math.huge
@@ -486,7 +897,7 @@ local function ToggleAimbot()
     end
 end
 
---// Kill All
+--// ===================== KILL ALL =====================
 local function KillAll()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
@@ -499,7 +910,7 @@ local function KillAll()
     end
 end
 
---// Grab Gun
+--// ===================== GRAB GUN =====================
 local function GrabGun()
     local gunDrop = Workspace:FindFirstChild("GunDrop")
     if gunDrop and gunDrop:IsA("BasePart") then
@@ -507,9 +918,9 @@ local function GrabGun()
         local root = GetRootPart(char)
         if root then
             root.CFrame = gunDrop.CFrame + Vector3.new(0, 3, 0)
-            wait(0.5)
+            task.wait(0.5)
             local touchInterest = gunDrop:FindFirstChild("TouchInterest")
-            if touchInterest then
+            if touchInterest and firetouchinterest then
                 firetouchinterest(root, gunDrop, 0)
                 firetouchinterest(root, gunDrop, 1)
             end
@@ -517,43 +928,108 @@ local function GrabGun()
     end
 end
 
---// ======================== TABS ========================
+--// ===================== UI BUILDER =====================
+local WindowObj = nil
+
+if Rayfield and not UseCustomUI then
+    --// Use Rayfield
+    WindowObj = Rayfield:CreateWindow({
+        Name = "MM2 Ultimate Suite",
+        LoadingTitle = "MM2 Ultimate",
+        LoadingSubtitle = "by the invisible man",
+        ConfigurationSaving = {Enabled = true, FolderName = "MM2Suite", FileName = "MM2Config"},
+        KeySystem = true,
+        KeySettings = {
+            Title = "Authentication Required",
+            Subtitle = "Enter your access key",
+            Note = "Key: Zkiller",
+            FileName = "MM2Key",
+            SaveKey = false,
+            GrabKeyFromSite = false,
+            Key = {"Zkiller"}
+        }
+    })
+else
+    --// Use Custom UI Fallback
+    WindowObj = CustomUI:CreateWindow({Name = "MM2 Ultimate Suite"})
+    UseCustomUI = true
+end
+
+--// Helper to create UI elements based on which system is active
+local function CreateToggle(tab, config)
+    if UseCustomUI then
+        return CustomUI:CreateToggle(tab, config)
+    else
+        return tab:CreateToggle(config)
+    end
+end
+
+local function CreateSlider(tab, config)
+    if UseCustomUI then
+        return CustomUI:CreateSlider(tab, config)
+    else
+        return tab:CreateSlider(config)
+    end
+end
+
+local function CreateButton(tab, config)
+    if UseCustomUI then
+        return CustomUI:CreateButton(tab, config)
+    else
+        return tab:CreateButton(config)
+    end
+end
+
+local function CreateDropdown(tab, config)
+    if UseCustomUI then
+        return CustomUI:CreateDropdown(tab, config)
+    else
+        return tab:CreateDropdown(config)
+    end
+end
+
+local function CreateParagraph(tab, config)
+    if UseCustomUI then
+        return CustomUI:CreateParagraph(tab, config)
+    else
+        return tab:CreateParagraph(config)
+    end
+end
+
+--// ===================== TABS =====================
+local CombatTab = WindowObj:CreateTab("Combat", 4483345998)
+local MovementTab = WindowObj:CreateTab("Movement", 4483345998)
+local VisualsTab = WindowObj:CreateTab("Visuals", 4483345998)
+local MM2Tab = WindowObj:CreateTab("MM2 Specific", 4483345998)
+local SettingsTab = WindowObj:CreateTab("Settings", 4483345998)
 
 --// Combat Tab
-local CombatTab = Window:CreateTab("Combat", 4483345998)
-
-CombatTab:CreateToggle({
+CreateToggle(CombatTab, {
     Name = "Silent Aim",
     CurrentValue = false,
     Flag = "SilentAim",
-    Callback = function(Value)
-        SilentAim_Enabled = Value
-    end
+    Callback = function(Value) SilentAim_Enabled = Value end
 })
 
-CombatTab:CreateSlider({
+CreateSlider(CombatTab, {
     Name = "Silent Aim FOV",
     Range = {50, 500},
     Increment = 10,
     Suffix = "px",
     CurrentValue = 150,
     Flag = "SilentAimFOV",
-    Callback = function(Value)
-        SilentAim_FOV = Value
-    end
+    Callback = function(Value) SilentAim_FOV = Value end
 })
 
-CombatTab:CreateDropdown({
+CreateDropdown(CombatTab, {
     Name = "Silent Aim Target",
     Options = {"Head", "Torso", "HumanoidRootPart", "Left Arm", "Right Arm", "Left Leg", "Right Leg"},
     CurrentOption = "Head",
     Flag = "SilentAimPart",
-    Callback = function(Option)
-        SilentAim_BodyPart = Option
-    end
+    Callback = function(Option) SilentAim_BodyPart = Option end
 })
 
-CombatTab:CreateToggle({
+CreateToggle(CombatTab, {
     Name = "Aimbot",
     CurrentValue = false,
     Flag = "Aimbot",
@@ -563,29 +1039,25 @@ CombatTab:CreateToggle({
     end
 })
 
-CombatTab:CreateDropdown({
+CreateDropdown(CombatTab, {
     Name = "Aimbot Target",
     Options = {"Head", "Torso", "HumanoidRootPart", "Left Arm", "Right Arm", "Left Leg", "Right Leg"},
     CurrentOption = "Head",
     Flag = "AimbotPart",
-    Callback = function(Option)
-        Aimbot_BodyPart = Option
-    end
+    Callback = function(Option) Aimbot_BodyPart = Option end
 })
 
-CombatTab:CreateSlider({
+CreateSlider(CombatTab, {
     Name = "Aimbot Smoothness",
     Range = {0.01, 1},
     Increment = 0.01,
     Suffix = "",
     CurrentValue = 0.15,
     Flag = "AimbotSmooth",
-    Callback = function(Value)
-        Aimbot_Smoothness = Value
-    end
+    Callback = function(Value) Aimbot_Smoothness = Value end
 })
 
-CombatTab:CreateToggle({
+CreateToggle(CombatTab, {
     Name = "Hitbox Expander",
     CurrentValue = false,
     Flag = "Hitbox",
@@ -595,7 +1067,7 @@ CombatTab:CreateToggle({
     end
 })
 
-CombatTab:CreateSlider({
+CreateSlider(CombatTab, {
     Name = "Hitbox Size",
     Range = {2, 20},
     Increment = 0.5,
@@ -609,9 +1081,7 @@ CombatTab:CreateSlider({
 })
 
 --// Movement Tab
-local MovementTab = Window:CreateTab("Movement", 4483345998)
-
-MovementTab:CreateToggle({
+CreateToggle(MovementTab, {
     Name = "Fly",
     CurrentValue = false,
     Flag = "Fly",
@@ -621,19 +1091,17 @@ MovementTab:CreateToggle({
     end
 })
 
-MovementTab:CreateSlider({
+CreateSlider(MovementTab, {
     Name = "Fly Speed",
     Range = {10, 500},
     Increment = 5,
     Suffix = "",
     CurrentValue = 50,
     Flag = "FlySpeed",
-    Callback = function(Value)
-        Fly_Speed = Value
-    end
+    Callback = function(Value) Fly_Speed = Value end
 })
 
-MovementTab:CreateToggle({
+CreateToggle(MovementTab, {
     Name = "Noclip",
     CurrentValue = false,
     Flag = "Noclip",
@@ -643,7 +1111,7 @@ MovementTab:CreateToggle({
     end
 })
 
-MovementTab:CreateToggle({
+CreateToggle(MovementTab, {
     Name = "Speed Changer",
     CurrentValue = false,
     Flag = "Speed",
@@ -653,7 +1121,7 @@ MovementTab:CreateToggle({
     end
 })
 
-MovementTab:CreateSlider({
+CreateSlider(MovementTab, {
     Name = "Speed Value",
     Range = {16, 300},
     Increment = 5,
@@ -666,7 +1134,7 @@ MovementTab:CreateSlider({
     end
 })
 
-MovementTab:CreateToggle({
+CreateToggle(MovementTab, {
     Name = "Jump Power Changer",
     CurrentValue = false,
     Flag = "Jump",
@@ -676,7 +1144,7 @@ MovementTab:CreateToggle({
     end
 })
 
-MovementTab:CreateSlider({
+CreateSlider(MovementTab, {
     Name = "Jump Power Value",
     Range = {50, 300},
     Increment = 5,
@@ -690,9 +1158,7 @@ MovementTab:CreateSlider({
 })
 
 --// Visuals Tab
-local VisualsTab = Window:CreateTab("Visuals", 4483345998)
-
-VisualsTab:CreateToggle({
+CreateToggle(VisualsTab, {
     Name = "ESP",
     CurrentValue = false,
     Flag = "ESP",
@@ -708,50 +1174,31 @@ VisualsTab:CreateToggle({
     end
 })
 
-VisualsTab:CreateColorPicker({
-    Name = "ESP Color",
-    Color = Color3.fromRGB(255, 255, 255),
-    Flag = "ESPColor",
-    Callback = function(Value)
-        ESP_Color = Value
-    end
-})
-
 --// MM2 Specific Tab
-local MM2Tab = Window:CreateTab("MM2 Specific", 4483345998)
-
-MM2Tab:CreateToggle({
+CreateToggle(MM2Tab, {
     Name = "Reveal Roles (Killer/Sheriff/Innocent)",
     CurrentValue = false,
     Flag = "RevealRoles",
-    Callback = function(Value)
-        RevealRoles_Enabled = Value
-    end
+    Callback = function(Value) RevealRoles_Enabled = Value end
 })
 
-MM2Tab:CreateButton({
+CreateButton(MM2Tab, {
     Name = "Grab Gun",
-    Callback = function()
-        GrabGun()
-    end
+    Callback = function() GrabGun() end
 })
 
-MM2Tab:CreateButton({
+CreateButton(MM2Tab, {
     Name = "Kill All",
-    Callback = function()
-        KillAll()
-    end
+    Callback = function() KillAll() end
 })
 
 --// Settings Tab
-local SettingsTab = Window:CreateTab("Settings", 4483345998)
-
-SettingsTab:CreateParagraph({
+CreateParagraph(SettingsTab, {
     Title = "Credits",
     Content = "MM2 Ultimate Suite v1.0\nMade by the invisible man"
 })
 
---// Player Events
+--// ===================== EVENTS & LOOPS =====================
 Players.PlayerAdded:Connect(function(player)
     if ESP_Enabled then CreateESP(player) end
 end)
@@ -760,39 +1207,44 @@ Players.PlayerRemoving:Connect(function(player)
     RemoveESP(player)
 end)
 
---// Main Loop
 RunService.RenderStepped:Connect(function()
     if ESP_Enabled then UpdateESP() end
     if Hitbox_Enabled then ExpandHitboxes() end
     if SpeedChanger_Enabled or JumpChanger_Enabled then UpdateSpeedAndJump() end
 end)
 
---// Respawn Handler
 LocalPlayer.CharacterAdded:Connect(function()
-    wait(1)
+    task.wait(1)
     if Fly_Enabled then ToggleFly() ToggleFly() end
     if Noclip_Enabled then ToggleNoclip() ToggleNoclip() end
     UpdateSpeedAndJump()
 end)
 
---// Silent Aim Hook (delayed to avoid conflicts)
-local mouse = LocalPlayer:GetMouse()
-local mt2 = getrawmetatable(mouse)
-setreadonly(mt2, false)
-local oldMouseIndex = mt2.__index
-mt2.__index = newcclosure(function(self, key)
-    if key == "Hit" and SilentAim_Enabled then
-        local target = GetClosestPlayerToMouse()
-        if target then
-            local char = GetCharacter(target)
-            local part = char and char:FindFirstChild(SilentAim_BodyPart)
-            if part then
-                return CFrame.new(part.Position + (part.Velocity * 0.05))
+--// Silent Aim Hook
+SafeCall(function()
+    local mouse = LocalPlayer:GetMouse()
+    local mt2 = getrawmetatable and getrawmetatable(mouse)
+    if not mt2 then return end
+    if setreadonly then setreadonly(mt2, false) end
+
+    local oldMouseIndex = mt2.__index
+    mt2.__index = function(self, key)
+        if key == "Hit" and SilentAim_Enabled then
+            local target = GetClosestPlayerToMouse()
+            if target then
+                local char = GetCharacter(target)
+                local part = char and char:FindFirstChild(SilentAim_BodyPart)
+                if part then
+                    return CFrame.new(part.Position + (part.Velocity * 0.05))
+                end
             end
         end
+        return oldMouseIndex(self, key)
     end
-    return oldMouseIndex(self, key)
 end)
 
-Rayfield:LoadConfiguration()
-print("[MM2 Suite] Loaded | by the invisible man")
+if Rayfield and not UseCustomUI then
+    Rayfield:LoadConfiguration()
+end
+
+print("[MM2 Suite] Loaded successfully | by the invisible man")
