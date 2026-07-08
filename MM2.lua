@@ -942,7 +942,7 @@ if Rayfield and not UseCustomUI then
         KeySettings = {
             Title = "Authentication Required",
             Subtitle = "Enter your access key",
-            Note = "Key: Zkiller",
+            Note = "So uhm soon ill make a discord so yall can ask for things added and report bugs all made in 30 minutes btw",
             FileName = "MM2Key",
             SaveKey = false,
             GrabKeyFromSite = false,
