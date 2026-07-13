@@ -55,7 +55,7 @@ SafeCall(function()
 end)
 
 if not Rayfield then
-    warn("[MM2 Suite] Rayfield failed to load, using custom UI fallback")
+    warn("[MM2] Rayfield failed to load, using custom UI fallback")
     UseCustomUI = true
 end
 
