@@ -12,7 +12,7 @@ local Camera = Workspace.CurrentCamera
 local function SafeCall(func, ...)
     local success, result = pcall(func, ...)
     if not success then
-        warn("[MM2 Suite] SafeCall error: " .. tostring(result))
+        warn("[MM2 ] SafeCall error: " .. tostring(result))
     end
     return success, result
 end
