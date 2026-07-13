@@ -1,6 +1,4 @@
---// MM2 Ultimate Suite | Credits: the invisible man
---// Key: Zkiller
---// Bulletproof Version - Compatible with all executors
+
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -1247,4 +1245,4 @@ if Rayfield and not UseCustomUI then
     Rayfield:LoadConfiguration()
 end
 
-print("[MM2 Suite] Loaded successfully | by the invisible man")
+print("[MM2] Loaded successfully | by the invisible man")
